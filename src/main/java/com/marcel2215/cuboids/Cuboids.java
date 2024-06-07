@@ -38,6 +38,12 @@ public class Cuboids implements ModInitializer {
         var block = world.getBlockState(blockHitResult.getBlockPos()).getBlock();
         if (block != Blocks.DIAMOND_BLOCK) {
             if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
+                if (!playerEntity.isCreative()) {
+                    var itemStack = playerEntity.getStackInHand(hand);
+                    playerEntity.setStackInHand(hand, itemStack);
+                    playerEntity.currentScreenHandler.syncState();
+                }
+
                 playerEntity.sendMessage(Text.of("Protected by Cuboid"), true);
                 return ActionResult.FAIL;
             }
