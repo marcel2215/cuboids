@@ -37,7 +37,7 @@ public class Cuboids implements ModInitializer {
 
         var block = world.getBlockState(blockHitResult.getBlockPos()).getBlock();
         if (block != Blocks.DIAMOND_BLOCK) {
-            if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 50)) {
+            if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
                 playerEntity.sendMessage(Text.of("Protected by Cuboid"), true);
                 return ActionResult.FAIL;
             }
@@ -49,7 +49,7 @@ public class Cuboids implements ModInitializer {
         var marker = markers.stream().findFirst().orElse(null);
 
         if (marker == null) {
-            if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 100)) {
+            if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 60)) {
                 playerEntity.sendMessage(Text.of("Too Close to Enemy Cuboid"), true);
                 return ActionResult.FAIL;
             }
@@ -90,7 +90,7 @@ public class Cuboids implements ModInitializer {
             }
         }
 
-        if (isBuildingBlocked(world, pos, player, 50)) {
+        if (isBuildingBlocked(world, pos, player, 30)) {
             player.sendMessage(Text.of("Protected by Cuboid"), true);
             return false;
         }
@@ -123,7 +123,7 @@ public class Cuboids implements ModInitializer {
         if (item == Items.BUCKET || item == Items.WATER_BUCKET || item == Items.LAVA_BUCKET) {
             var blockHitResult = (BlockHitResult) playerEntity.raycast(5.0D, 1.0F, true);
             if (blockHitResult.getType() == BlockHitResult.Type.BLOCK) {
-                if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 50)) {
+                if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
                     playerEntity.sendMessage(Text.of("Protected by Cuboid"), true);
                     return new TypedActionResult<>(ActionResult.FAIL, itemStack);
                 }
