@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "cuboids",
+  "version": "${version}",
+  "name": "Cuboids",
+  "description": "A lightweight Minecraft Fabric mod for land claiming on SMP servers.",
+  "authors": [
+    "Marcel Kwiatkowski"
+  ],
+  "contact": {
+    "repo": "https://github.com/marcel2215/cuboids"
+  },
+  "license": "MIT",
+  "icon": "assets/cuboids/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "client": [
+      "com.marcel2215.cuboids.client.CuboidsClient"
+    ],
+    "main": [
+      "com.marcel2215.cuboids.Cuboids"
+    ]
+  },
+  "mixins": [
+    "cuboids.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
