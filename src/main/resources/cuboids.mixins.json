@@ -4,7 +4,8 @@
   "package": "com.marcel2215.cuboids.mixins",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ExplosionMixin"
+    "ExplosionMixin",
+    "PistonHandlerMixin"
   ],
   "client": [
   ],
