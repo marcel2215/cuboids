@@ -35,10 +35,6 @@ public class Cuboids implements ModInitializer {
     }
 
     private ActionResult onBlockUse(PlayerEntity playerEntity, World world, Hand hand, BlockHitResult blockHitResult) {
-        if (hand != Hand.MAIN_HAND) {
-            return ActionResult.PASS;
-        }
-
         var block = world.getBlockState(blockHitResult.getBlockPos()).getBlock();
         if (block != Blocks.DIAMOND_BLOCK) {
             var stackInHand = playerEntity.getStackInHand(hand);
@@ -72,6 +68,10 @@ public class Cuboids implements ModInitializer {
                 return ActionResult.FAIL;
             }
 
+            return ActionResult.PASS;
+        }
+
+        if (hand != Hand.MAIN_HAND) {
             return ActionResult.PASS;
         }
 
