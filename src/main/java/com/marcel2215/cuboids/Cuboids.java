@@ -11,6 +11,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MarkerEntity;
+import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -46,6 +47,22 @@ public class Cuboids implements ModInitializer {
             }
 
             if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
+                if (stackInHand.isOf(Items.TNT)) {
+                    var tnt = new TntEntity(EntityType.TNT, world);
+                    var side = blockHitResult.getSide();
+                    var wherePlaced = blockHitResult.getBlockPos().offset(side);
+
+                    tnt.updatePosition(wherePlaced.getX() + 0.5, wherePlaced.getY(), wherePlaced.getZ() + 0.5);
+                    world.spawnEntity(tnt);
+
+                    if (!playerEntity.isCreative()) {
+                        stackInHand.decrement(1);
+                        playerEntity.currentScreenHandler.syncState();
+                    }
+
+                    return ActionResult.SUCCESS;
+                }
+
                 if (!playerEntity.isCreative()) {
                     playerEntity.setStackInHand(hand, stackInHand);
                     playerEntity.currentScreenHandler.syncState();
