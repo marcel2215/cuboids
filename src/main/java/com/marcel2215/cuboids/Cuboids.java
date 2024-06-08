@@ -4,6 +4,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
@@ -22,6 +23,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+
 public class Cuboids implements ModInitializer {
     @Override
     public void onInitialize() {
@@ -37,10 +40,14 @@ public class Cuboids implements ModInitializer {
 
         var block = world.getBlockState(blockHitResult.getBlockPos()).getBlock();
         if (block != Blocks.DIAMOND_BLOCK) {
+            var stackInHand = playerEntity.getStackInHand(hand);
+            if ((stackInHand.isEmpty() || !playerEntity.isSneaking()) && isUsableByEveryone(block)) {
+                return ActionResult.PASS;
+            }
+
             if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
                 if (!playerEntity.isCreative()) {
-                    var itemStack = playerEntity.getStackInHand(hand);
-                    playerEntity.setStackInHand(hand, itemStack);
+                    playerEntity.setStackInHand(hand, stackInHand);
                     playerEntity.currentScreenHandler.syncState();
                 }
 
@@ -137,5 +144,42 @@ public class Cuboids implements ModInitializer {
         }
 
         return new TypedActionResult<>(ActionResult.PASS, itemStack);
+    }
+
+    private boolean isUsableByEveryone(Block block) {
+        var publicBlocks = new ArrayList<Block>();
+
+        publicBlocks.add(Blocks.CRAFTING_TABLE);
+        publicBlocks.add(Blocks.ENCHANTING_TABLE);
+        publicBlocks.add(Blocks.ANVIL);
+        publicBlocks.add(Blocks.CHIPPED_ANVIL);
+        publicBlocks.add(Blocks.DAMAGED_ANVIL);
+        publicBlocks.add(Blocks.LOOM);
+        publicBlocks.add(Blocks.LODESTONE);
+        publicBlocks.add(Blocks.GRINDSTONE);
+        publicBlocks.add(Blocks.SMITHING_TABLE);
+        publicBlocks.add(Blocks.CARTOGRAPHY_TABLE);
+        publicBlocks.add(Blocks.STONECUTTER);
+        publicBlocks.add(Blocks.CAMPFIRE);
+        publicBlocks.add(Blocks.ENDER_CHEST);
+        publicBlocks.add(Blocks.BELL);
+        publicBlocks.add(Blocks.BLACK_BED);
+        publicBlocks.add(Blocks.BLUE_BED);
+        publicBlocks.add(Blocks.BROWN_BED);
+        publicBlocks.add(Blocks.CYAN_BED);
+        publicBlocks.add(Blocks.GRAY_BED);
+        publicBlocks.add(Blocks.GREEN_BED);
+        publicBlocks.add(Blocks.LIGHT_BLUE_BED);
+        publicBlocks.add(Blocks.LIGHT_GRAY_BED);
+        publicBlocks.add(Blocks.LIME_BED);
+        publicBlocks.add(Blocks.MAGENTA_BED);
+        publicBlocks.add(Blocks.ORANGE_BED);
+        publicBlocks.add(Blocks.PINK_BED);
+        publicBlocks.add(Blocks.PURPLE_BED);
+        publicBlocks.add(Blocks.RED_BED);
+        publicBlocks.add(Blocks.WHITE_BED);
+        publicBlocks.add(Blocks.YELLOW_BED);
+
+        return publicBlocks.contains(block);
     }
 }
