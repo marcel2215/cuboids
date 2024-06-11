@@ -31,7 +31,13 @@ public class ExplosionMixin {
                     return tags.contains("__type__cuboid");
                 });
 
-                for (var marker: markers) {
+                for (var marker : markers) {
+                    var tags = marker.getCommandTags();
+                    if (tags.contains(("__admin_cuboid"))) {
+                        explosion.clearAffectedBlocks();
+                        return;
+                    }
+
                     marker.remove(Entity.RemovalReason.KILLED);
                 }
             }
