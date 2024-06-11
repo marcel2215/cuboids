@@ -39,19 +39,72 @@ public class Cuboids implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        _authorizedBossBar = new ServerBossBar(
-                Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.GREEN)).withBold(true)),
-                BossBar.Color.GREEN,
-                BossBar.Style.PROGRESS);
-        _unauthorizedBossBar = new ServerBossBar(
-                Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.RED)).withBold(true)),
-                BossBar.Color.RED,
-                BossBar.Style.PROGRESS);
+        _authorizedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.GREEN)).withBold(true)), BossBar.Color.GREEN, BossBar.Style.PROGRESS);
+        _unauthorizedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.RED)).withBold(true)), BossBar.Color.RED, BossBar.Style.PROGRESS);
 
+        ServerTickEvents.END_WORLD_TICK.register(this::onWorldTick);
+        UseItemCallback.EVENT.register(this::onItemUse);
         UseBlockCallback.EVENT.register(this::onBlockUse);
         PlayerBlockBreakEvents.BEFORE.register(this::onBlockBreak);
-        UseItemCallback.EVENT.register(this::onItemUse);
-        ServerTickEvents.START_WORLD_TICK.register(this::onWorldTick);
+    }
+
+    private void onWorldTick(World world) {
+        if (world.isClient()) {
+            return;
+        }
+
+        for (PlayerEntity player : world.getPlayers()) {
+            var pos = player.getBlockPos();
+            var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(30), e -> {
+                var tags = e.getCommandTags();
+                return tags.contains("__type__cuboid");
+            });
+
+            var isAuthorized = false;
+            var isUnauthorized = false;
+
+            for (var marker : markers) {
+                var tags = marker.getCommandTags();
+                var playerUUID = player.getUuidAsString();
+
+                if (tags.contains("__authorized__" + playerUUID)) {
+                    isAuthorized = true;
+                } else {
+                    isAuthorized = false;
+                    isUnauthorized = true;
+
+                    break;
+                }
+            }
+
+            if (isUnauthorized) {
+                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _unauthorizedBossBar.addPlayer((ServerPlayerEntity) player);
+            } else if (isAuthorized) {
+                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _authorizedBossBar.addPlayer((ServerPlayerEntity) player);
+            } else {
+                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
+            }
+        }
+    }
+
+    private TypedActionResult<ItemStack> onItemUse(PlayerEntity playerEntity, World world, Hand hand) {
+        var itemStack = playerEntity.getStackInHand(hand);
+        var item = itemStack.getItem();
+
+        if (item == Items.BUCKET || item == Items.WATER_BUCKET || item == Items.LAVA_BUCKET) {
+            var blockHitResult = (BlockHitResult) playerEntity.raycast(5.0D, 1.0F, true);
+            if (blockHitResult.getType() == BlockHitResult.Type.BLOCK) {
+                if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
+                    playerEntity.sendMessage(Text.of("Protected by Cuboid"), true);
+                    return new TypedActionResult<>(ActionResult.FAIL, itemStack);
+                }
+            }
+        }
+
+        return new TypedActionResult<>(ActionResult.PASS, itemStack);
     }
 
     private ActionResult onBlockUse(PlayerEntity playerEntity, World world, Hand hand, BlockHitResult blockHitResult) {
@@ -166,23 +219,6 @@ public class Cuboids implements ModInitializer {
         return false;
     }
 
-    private TypedActionResult<ItemStack> onItemUse(PlayerEntity playerEntity, World world, Hand hand) {
-        var itemStack = playerEntity.getStackInHand(hand);
-        var item = itemStack.getItem();
-
-        if (item == Items.BUCKET || item == Items.WATER_BUCKET || item == Items.LAVA_BUCKET) {
-            var blockHitResult = (BlockHitResult) playerEntity.raycast(5.0D, 1.0F, true);
-            if (blockHitResult.getType() == BlockHitResult.Type.BLOCK) {
-                if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
-                    playerEntity.sendMessage(Text.of("Protected by Cuboid"), true);
-                    return new TypedActionResult<>(ActionResult.FAIL, itemStack);
-                }
-            }
-        }
-
-        return new TypedActionResult<>(ActionResult.PASS, itemStack);
-    }
-
     private boolean isUsableByEveryone(Block block) {
         var publicBlocks = new ArrayList<Block>();
 
@@ -218,47 +254,5 @@ public class Cuboids implements ModInitializer {
         publicBlocks.add(Blocks.YELLOW_BED);
 
         return publicBlocks.contains(block);
-    }
-
-    private void onWorldTick(World world) {
-        if (world.isClient()) {
-            return;
-        }
-
-        for (PlayerEntity player : world.getPlayers()) {
-            var pos = player.getBlockPos();
-            var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(30), e -> {
-                var tags = e.getCommandTags();
-                return tags.contains("__type__cuboid");
-            });
-
-            var isAuthorized = false;
-            var isUnauthorized = false;
-
-            for (var marker : markers) {
-                var tags = marker.getCommandTags();
-                var playerUUID = player.getUuidAsString();
-
-                if (tags.contains("__authorized__" + playerUUID)) {
-                    isAuthorized = true;
-                } else {
-                    isAuthorized = false;
-                    isUnauthorized = true;
-
-                    break;
-                }
-            }
-
-            if (isUnauthorized) {
-                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
-                _unauthorizedBossBar.addPlayer((ServerPlayerEntity) player);
-            } else if (isAuthorized) {
-                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
-                _authorizedBossBar.addPlayer((ServerPlayerEntity) player);
-            } else {
-                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
-                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
-            }
-        }
     }
 }
