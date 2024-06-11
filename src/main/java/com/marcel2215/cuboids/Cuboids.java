@@ -1,6 +1,7 @@
 package com.marcel2215.cuboids;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -12,11 +13,17 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MarkerEntity;
 import net.minecraft.entity.TntEntity;
+import net.minecraft.entity.boss.BossBar;
+import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.BlockHitResult;
@@ -27,11 +34,24 @@ import net.minecraft.world.World;
 import java.util.ArrayList;
 
 public class Cuboids implements ModInitializer {
+    private ServerBossBar _authorizedBossBar;
+    private ServerBossBar _unauthorizedBossBar;
+
     @Override
     public void onInitialize() {
+        _authorizedBossBar = new ServerBossBar(
+                Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.GREEN)).withBold(true)),
+                BossBar.Color.GREEN,
+                BossBar.Style.PROGRESS);
+        _unauthorizedBossBar = new ServerBossBar(
+                Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.RED)).withBold(true)),
+                BossBar.Color.RED,
+                BossBar.Style.PROGRESS);
+
         UseBlockCallback.EVENT.register(this::onBlockUse);
         PlayerBlockBreakEvents.BEFORE.register(this::onBlockBreak);
         UseItemCallback.EVENT.register(this::onItemUse);
+        ServerTickEvents.START_WORLD_TICK.register(this::onWorldTick);
     }
 
     private ActionResult onBlockUse(PlayerEntity playerEntity, World world, Hand hand, BlockHitResult blockHitResult) {
@@ -198,5 +218,47 @@ public class Cuboids implements ModInitializer {
         publicBlocks.add(Blocks.YELLOW_BED);
 
         return publicBlocks.contains(block);
+    }
+
+    private void onWorldTick(World world) {
+        if (world.isClient()) {
+            return;
+        }
+
+        for (PlayerEntity player : world.getPlayers()) {
+            var pos = player.getBlockPos();
+            var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(30), e -> {
+                var tags = e.getCommandTags();
+                return tags.contains("__type__cuboid");
+            });
+
+            var isAuthorized = false;
+            var isUnauthorized = false;
+
+            for (var marker : markers) {
+                var tags = marker.getCommandTags();
+                var playerUUID = player.getUuidAsString();
+
+                if (tags.contains("__authorized__" + playerUUID)) {
+                    isAuthorized = true;
+                } else {
+                    isAuthorized = false;
+                    isUnauthorized = true;
+
+                    break;
+                }
+            }
+
+            if (isUnauthorized) {
+                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _unauthorizedBossBar.addPlayer((ServerPlayerEntity) player);
+            } else if (isAuthorized) {
+                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _authorizedBossBar.addPlayer((ServerPlayerEntity) player);
+            } else {
+                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
+            }
+        }
     }
 }
