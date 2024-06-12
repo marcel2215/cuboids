@@ -32,15 +32,21 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class Cuboids implements ModInitializer {
-    private ServerBossBar _authorizedBossBar;
+    private final int CUBOID_RANGE = 30;
+
     private ServerBossBar _unauthorizedBossBar;
+    private ServerBossBar _serverOwnedBossBar;
+    private ServerBossBar _authorizedBossBar;
+
 
     @Override
     public void onInitialize() {
-        _authorizedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.GREEN)).withBold(true)), BossBar.Color.GREEN, BossBar.Style.PROGRESS);
         _unauthorizedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.RED)).withBold(true)), BossBar.Color.RED, BossBar.Style.PROGRESS);
+        _serverOwnedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.YELLOW)).withBold(true)), BossBar.Color.YELLOW, BossBar.Style.PROGRESS);
+        _authorizedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.GREEN)).withBold(true)), BossBar.Color.GREEN, BossBar.Style.PROGRESS);
 
         ServerTickEvents.END_WORLD_TICK.register(this::onWorldTick);
         UseItemCallback.EVENT.register(this::onItemUse);
@@ -55,37 +61,24 @@ public class Cuboids implements ModInitializer {
 
         for (PlayerEntity player : world.getPlayers()) {
             var pos = player.getBlockPos();
-            var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(30), e -> {
-                var tags = e.getCommandTags();
-                return tags.contains("__type__cuboid");
-            });
+            var status = getCuboidStatus(world, pos, player, CUBOID_RANGE);
 
-            var isAuthorized = false;
-            var isUnauthorized = false;
-
-            for (var marker : markers) {
-                var tags = marker.getCommandTags();
-                var playerUUID = player.getUuidAsString();
-
-                if (tags.contains("__authorized__" + playerUUID)) {
-                    isAuthorized = true;
-                } else {
-                    isAuthorized = false;
-                    isUnauthorized = true;
-
-                    break;
-                }
-            }
-
-            if (isUnauthorized) {
+            if (status == CuboidStatus.SERVER_OWNED) {
+                _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _serverOwnedBossBar.addPlayer((ServerPlayerEntity) player);
+            } else if (status == CuboidStatus.UNAUTHORIZED) {
+                _serverOwnedBossBar.removePlayer((ServerPlayerEntity) player);
                 _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
                 _unauthorizedBossBar.addPlayer((ServerPlayerEntity) player);
-            } else if (isAuthorized) {
+            } else if (status == CuboidStatus.AUTHORIZED) {
+                _serverOwnedBossBar.removePlayer((ServerPlayerEntity) player);
                 _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
                 _authorizedBossBar.addPlayer((ServerPlayerEntity) player);
             } else {
-                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _serverOwnedBossBar.removePlayer((ServerPlayerEntity) player);
                 _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
+                _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
             }
         }
     }
@@ -97,7 +90,8 @@ public class Cuboids implements ModInitializer {
         if (item == Items.BUCKET || item == Items.WATER_BUCKET || item == Items.LAVA_BUCKET) {
             var blockHitResult = (BlockHitResult) playerEntity.raycast(5.0D, 1.0F, true);
             if (blockHitResult.getType() == BlockHitResult.Type.BLOCK) {
-                if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
+                var status = getCuboidStatus(world, blockHitResult.getBlockPos(), playerEntity, CUBOID_RANGE);
+                if (status == CuboidStatus.SERVER_OWNED || status == CuboidStatus.UNAUTHORIZED) {
                     playerEntity.sendMessage(Text.of("Protected by Cuboid"), true);
                     return new TypedActionResult<>(ActionResult.FAIL, itemStack);
                 }
@@ -111,12 +105,17 @@ public class Cuboids implements ModInitializer {
         var block = world.getBlockState(blockHitResult.getBlockPos()).getBlock();
         if (block != Blocks.DIAMOND_BLOCK) {
             var stackInHand = playerEntity.getStackInHand(hand);
-            if ((stackInHand.isEmpty() || !playerEntity.isSneaking()) && isUsableByEveryone(block)) {
+            if ((stackInHand.isEmpty() || !playerEntity.isSneaking()) && isFunctionalBlock(block) && !isStatefulBlock(block)) {
                 return ActionResult.PASS;
             }
 
-            if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 30)) {
-                if (stackInHand.isOf(Items.TNT)) {
+            var status = getCuboidStatus(world, blockHitResult.getBlockPos(), playerEntity, CUBOID_RANGE);
+            if (status == CuboidStatus.SERVER_OWNED || status == CuboidStatus.UNAUTHORIZED) {
+                if ((stackInHand.isEmpty() || !playerEntity.isSneaking()) && isFunctionalBlock(block) && status == CuboidStatus.SERVER_OWNED) {
+                    return ActionResult.PASS;
+                }
+
+                if (stackInHand.isOf(Items.TNT) && status != CuboidStatus.SERVER_OWNED) {
                     var tnt = new TntEntity(EntityType.TNT, world);
                     var side = blockHitResult.getSide();
                     var wherePlaced = blockHitResult.getBlockPos().offset(side);
@@ -152,8 +151,9 @@ public class Cuboids implements ModInitializer {
         var marker = markers.stream().findFirst().orElse(null);
 
         if (marker == null) {
-            if (isBuildingBlocked(world, blockHitResult.getBlockPos(), playerEntity, 60)) {
-                playerEntity.sendMessage(Text.of("Too Close to Enemy Cuboid"), true);
+            var status = getCuboidStatus(world, blockHitResult.getBlockPos(), playerEntity, CUBOID_RANGE * 2);
+            if (status == CuboidStatus.SERVER_OWNED || status == CuboidStatus.UNAUTHORIZED) {
+                playerEntity.sendMessage(Text.of("Too Close to Unauthorized Cuboid"), true);
                 return ActionResult.FAIL;
             }
 
@@ -179,21 +179,19 @@ public class Cuboids implements ModInitializer {
 
     private boolean onBlockBreak(World world, PlayerEntity player, BlockPos pos, BlockState state, BlockEntity blockEntity) {
         if (state.getBlock() == Blocks.DIAMOND_BLOCK) {
-            var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(1), e -> {
-                var tags = e.getCommandTags();
-                return tags.contains("__type__cuboid");
-            });
-
-            var marker = markers.stream().findFirst().orElse(null);
-            if (marker != null) {
+            var markers = getCuboidMarkers(world, pos, 1);
+            for (var marker : markers) {
                 marker.remove(Entity.RemovalReason.KILLED);
-                player.sendMessage(Text.of("Cuboid Removed"), true);
+            }
 
+            if (!markers.isEmpty()) {
+                player.sendMessage(Text.of("Cuboid Removed"), true);
                 return true;
             }
         }
 
-        if (isBuildingBlocked(world, pos, player, 30)) {
+        var status = getCuboidStatus(world, pos, player, CUBOID_RANGE);
+        if (status == CuboidStatus.SERVER_OWNED || status == CuboidStatus.UNAUTHORIZED) {
             player.sendMessage(Text.of("Protected by Cuboid"), true);
             return false;
         }
@@ -201,58 +199,116 @@ public class Cuboids implements ModInitializer {
         return true;
     }
 
-    private boolean isBuildingBlocked(World world, BlockPos pos, PlayerEntity player, int range) {
-        var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(range), e -> {
+    private List<MarkerEntity> getCuboidMarkers(World world, BlockPos pos, int range) {
+        return world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(range), e -> {
             var tags = e.getCommandTags();
             return tags.contains("__type__cuboid");
         });
+    }
+
+    private CuboidStatus getCuboidStatus(World world, BlockPos pos, PlayerEntity player, int range) {
+        var markers = getCuboidMarkers(world, pos, range);
+
+        var isAuthorized = false;
+        var isUnauthorized = false;
 
         for (var marker : markers) {
             var tags = marker.getCommandTags();
             var playerUUID = player.getUuidAsString();
 
-            if (!tags.contains("__authorized__" + playerUUID)) {
-                return true;
+            if (tags.contains("__authorized__" + playerUUID)) {
+                isAuthorized = true;
+            } else if (tags.contains("__server_owned")) {
+                return CuboidStatus.SERVER_OWNED;
+            } else {
+                isUnauthorized = true;
             }
         }
 
-        return false;
+        if (isUnauthorized) {
+            return CuboidStatus.UNAUTHORIZED;
+        } else if (isAuthorized) {
+            return CuboidStatus.AUTHORIZED;
+        }
+
+        return CuboidStatus.NONE;
     }
 
-    private boolean isUsableByEveryone(Block block) {
-        var publicBlocks = new ArrayList<Block>();
+    private boolean isFunctionalBlock(Block block) {
+        if (isStatefulBlock(block)) {
+            return true;
+        }
 
-        publicBlocks.add(Blocks.CRAFTING_TABLE);
-        publicBlocks.add(Blocks.ENCHANTING_TABLE);
-        publicBlocks.add(Blocks.ANVIL);
-        publicBlocks.add(Blocks.CHIPPED_ANVIL);
-        publicBlocks.add(Blocks.DAMAGED_ANVIL);
-        publicBlocks.add(Blocks.LOOM);
-        publicBlocks.add(Blocks.LODESTONE);
-        publicBlocks.add(Blocks.GRINDSTONE);
-        publicBlocks.add(Blocks.SMITHING_TABLE);
-        publicBlocks.add(Blocks.CARTOGRAPHY_TABLE);
-        publicBlocks.add(Blocks.STONECUTTER);
-        publicBlocks.add(Blocks.CAMPFIRE);
-        publicBlocks.add(Blocks.ENDER_CHEST);
-        publicBlocks.add(Blocks.BELL);
-        publicBlocks.add(Blocks.BLACK_BED);
-        publicBlocks.add(Blocks.BLUE_BED);
-        publicBlocks.add(Blocks.BROWN_BED);
-        publicBlocks.add(Blocks.CYAN_BED);
-        publicBlocks.add(Blocks.GRAY_BED);
-        publicBlocks.add(Blocks.GREEN_BED);
-        publicBlocks.add(Blocks.LIGHT_BLUE_BED);
-        publicBlocks.add(Blocks.LIGHT_GRAY_BED);
-        publicBlocks.add(Blocks.LIME_BED);
-        publicBlocks.add(Blocks.MAGENTA_BED);
-        publicBlocks.add(Blocks.ORANGE_BED);
-        publicBlocks.add(Blocks.PINK_BED);
-        publicBlocks.add(Blocks.PURPLE_BED);
-        publicBlocks.add(Blocks.RED_BED);
-        publicBlocks.add(Blocks.WHITE_BED);
-        publicBlocks.add(Blocks.YELLOW_BED);
+        var functionalBlocks = new ArrayList<Block>();
 
-        return publicBlocks.contains(block);
+        functionalBlocks.add(Blocks.ACACIA_BUTTON);
+        functionalBlocks.add(Blocks.ANVIL);
+        functionalBlocks.add(Blocks.BAMBOO_BUTTON);
+        functionalBlocks.add(Blocks.BELL);
+        functionalBlocks.add(Blocks.BIRCH_BUTTON);
+        functionalBlocks.add(Blocks.BLACK_BED);
+        functionalBlocks.add(Blocks.BLUE_BED);
+        functionalBlocks.add(Blocks.BROWN_BED);
+        functionalBlocks.add(Blocks.CAMPFIRE);
+        functionalBlocks.add(Blocks.CARTOGRAPHY_TABLE);
+        functionalBlocks.add(Blocks.CHERRY_BUTTON);
+        functionalBlocks.add(Blocks.CHIPPED_ANVIL);
+        functionalBlocks.add(Blocks.CRAFTING_TABLE);
+        functionalBlocks.add(Blocks.CRIMSON_BUTTON);
+        functionalBlocks.add(Blocks.CYAN_BED);
+        functionalBlocks.add(Blocks.DAMAGED_ANVIL);
+        functionalBlocks.add(Blocks.DARK_OAK_BUTTON);
+        functionalBlocks.add(Blocks.ENCHANTING_TABLE);
+        functionalBlocks.add(Blocks.ENDER_CHEST);
+        functionalBlocks.add(Blocks.GRAY_BED);
+        functionalBlocks.add(Blocks.GREEN_BED);
+        functionalBlocks.add(Blocks.GRINDSTONE);
+        functionalBlocks.add(Blocks.JUNGLE_BUTTON);
+        functionalBlocks.add(Blocks.LIGHT_BLUE_BED);
+        functionalBlocks.add(Blocks.LIGHT_GRAY_BED);
+        functionalBlocks.add(Blocks.LIME_BED);
+        functionalBlocks.add(Blocks.LODESTONE);
+        functionalBlocks.add(Blocks.LOOM);
+        functionalBlocks.add(Blocks.MAGENTA_BED);
+        functionalBlocks.add(Blocks.MANGROVE_BUTTON);
+        functionalBlocks.add(Blocks.OAK_BUTTON);
+        functionalBlocks.add(Blocks.ORANGE_BED);
+        functionalBlocks.add(Blocks.PINK_BED);
+        functionalBlocks.add(Blocks.PURPLE_BED);
+        functionalBlocks.add(Blocks.RED_BED);
+        functionalBlocks.add(Blocks.SMITHING_TABLE);
+        functionalBlocks.add(Blocks.SPRUCE_BUTTON);
+        functionalBlocks.add(Blocks.STONECUTTER);
+        functionalBlocks.add(Blocks.WARPED_BUTTON);
+        functionalBlocks.add(Blocks.WHITE_BED);
+        functionalBlocks.add(Blocks.YELLOW_BED);
+
+        return functionalBlocks.contains(block);
+    }
+
+    private boolean isStatefulBlock(Block block) {
+        var statefulBlocks = new ArrayList<Block>();
+
+        statefulBlocks.add(Blocks.BARREL);
+        statefulBlocks.add(Blocks.BEACON);
+        statefulBlocks.add(Blocks.BLAST_FURNACE);
+        statefulBlocks.add(Blocks.BREWING_STAND);
+        statefulBlocks.add(Blocks.CHEST);
+        statefulBlocks.add(Blocks.COMPARATOR);
+        statefulBlocks.add(Blocks.DAYLIGHT_DETECTOR);
+        statefulBlocks.add(Blocks.DAYLIGHT_DETECTOR);
+        statefulBlocks.add(Blocks.DISPENSER);
+        statefulBlocks.add(Blocks.DROPPER);
+        statefulBlocks.add(Blocks.FURNACE);
+        statefulBlocks.add(Blocks.HOPPER);
+        statefulBlocks.add(Blocks.LECTERN);
+        statefulBlocks.add(Blocks.LEVER);
+        statefulBlocks.add(Blocks.NOTE_BLOCK);
+        statefulBlocks.add(Blocks.REPEATER);
+        statefulBlocks.add(Blocks.SMOKER);
+        statefulBlocks.add(Blocks.STONE_BUTTON);
+        statefulBlocks.add(Blocks.TRAPPED_CHEST);
+
+        return statefulBlocks.contains(block);
     }
 }
