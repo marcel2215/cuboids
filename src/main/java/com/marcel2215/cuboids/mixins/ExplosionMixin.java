@@ -24,6 +24,16 @@ public class ExplosionMixin {
 
         var world = entity.getWorld();
         for (BlockPos pos : explosion.getAffectedBlocks()) {
+            var serverMarkers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(60), e -> {
+                var tags = e.getCommandTags();
+                return tags.contains("__type__cuboid") && tags.contains("__server_owned");
+            });
+
+            if (!serverMarkers.isEmpty()) {
+                explosion.clearAffectedBlocks();
+                return;
+            }
+
             var block = world.getBlockState(pos).getBlock();
             if (block == Blocks.DIAMOND_BLOCK) {
                 var markers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(2), e -> {
@@ -32,12 +42,6 @@ public class ExplosionMixin {
                 });
 
                 for (var marker : markers) {
-                    var tags = marker.getCommandTags();
-                    if (tags.contains(("__admin_cuboid"))) {
-                        explosion.clearAffectedBlocks();
-                        return;
-                    }
-
                     marker.remove(Entity.RemovalReason.KILLED);
                 }
             }
