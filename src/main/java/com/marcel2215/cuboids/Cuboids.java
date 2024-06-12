@@ -31,6 +31,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -66,10 +67,21 @@ public class Cuboids implements ModInitializer {
             var pos = player.getBlockPos();
             var status = getCuboidStatus(world, pos, player, CUBOID_RANGE);
 
+            var currentGameMode = ((ServerPlayerEntity) player).interactionManager.getGameMode();
+            if (currentGameMode != GameMode.CREATIVE && currentGameMode != GameMode.SPECTATOR) {
+                if (status == CuboidStatus.SERVER_OWNED || status == CuboidStatus.UNAUTHORIZED) {
+                    ((ServerPlayerEntity) player).changeGameMode(GameMode.ADVENTURE);
+                } else {
+                    ((ServerPlayerEntity) player).changeGameMode(GameMode.SURVIVAL);
+                }
+            }
+
             if (status == CuboidStatus.SERVER_OWNED) {
                 _unauthorizedBossBar.removePlayer((ServerPlayerEntity) player);
                 _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
                 _serverOwnedBossBar.addPlayer((ServerPlayerEntity) player);
+
+                ((ServerPlayerEntity) player).changeGameMode(GameMode.ADVENTURE);
             } else if (status == CuboidStatus.UNAUTHORIZED) {
                 _serverOwnedBossBar.removePlayer((ServerPlayerEntity) player);
                 _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
