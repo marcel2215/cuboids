@@ -123,7 +123,7 @@ public class Cuboids implements ModInitializer {
         var block = world.getBlockState(blockHitResult.getBlockPos()).getBlock();
         if (block != Blocks.DIAMOND_BLOCK) {
             var stackInHand = playerEntity.getStackInHand(hand);
-            if ((stackInHand.isEmpty() || !playerEntity.isSneaking()) && isFunctionalBlock(block) && !isStatefulBlock(block)) {
+            if ((stackInHand.isEmpty() || !playerEntity.isSneaking()) && isFunctionalBlock(block) && !isPrivateBlock(block)) {
                 return ActionResult.PASS;
             }
 
@@ -253,7 +253,7 @@ public class Cuboids implements ModInitializer {
     }
 
     private boolean isFunctionalBlock(Block block) {
-        if (isStatefulBlock(block)) {
+        if (isPrivateBlock(block)) {
             return true;
         }
 
@@ -304,29 +304,29 @@ public class Cuboids implements ModInitializer {
         return functionalBlocks.contains(block);
     }
 
-    private boolean isStatefulBlock(Block block) {
-        var statefulBlocks = new ArrayList<Block>();
+    private boolean isPrivateBlock(Block block) {
+        var isPrivateBlock = new ArrayList<Block>();
 
-        statefulBlocks.add(Blocks.BARREL);
-        statefulBlocks.add(Blocks.BEACON);
-        statefulBlocks.add(Blocks.BLAST_FURNACE);
-        statefulBlocks.add(Blocks.BREWING_STAND);
-        statefulBlocks.add(Blocks.CHEST);
-        statefulBlocks.add(Blocks.COMPARATOR);
-        statefulBlocks.add(Blocks.DAYLIGHT_DETECTOR);
-        statefulBlocks.add(Blocks.DAYLIGHT_DETECTOR);
-        statefulBlocks.add(Blocks.DISPENSER);
-        statefulBlocks.add(Blocks.DROPPER);
-        statefulBlocks.add(Blocks.FURNACE);
-        statefulBlocks.add(Blocks.HOPPER);
-        statefulBlocks.add(Blocks.LECTERN);
-        statefulBlocks.add(Blocks.LEVER);
-        statefulBlocks.add(Blocks.NOTE_BLOCK);
-        statefulBlocks.add(Blocks.REPEATER);
-        statefulBlocks.add(Blocks.SMOKER);
-        statefulBlocks.add(Blocks.STONE_BUTTON);
-        statefulBlocks.add(Blocks.TRAPPED_CHEST);
+        isPrivateBlock.add(Blocks.BARREL);
+        isPrivateBlock.add(Blocks.BEACON);
+        isPrivateBlock.add(Blocks.BLAST_FURNACE);
+        isPrivateBlock.add(Blocks.BREWING_STAND);
+        isPrivateBlock.add(Blocks.CHEST);
+        isPrivateBlock.add(Blocks.COMPARATOR);
+        isPrivateBlock.add(Blocks.DAYLIGHT_DETECTOR);
+        isPrivateBlock.add(Blocks.DAYLIGHT_DETECTOR);
+        isPrivateBlock.add(Blocks.DISPENSER);
+        isPrivateBlock.add(Blocks.DROPPER);
+        isPrivateBlock.add(Blocks.FURNACE);
+        isPrivateBlock.add(Blocks.HOPPER);
+        isPrivateBlock.add(Blocks.LECTERN);
+        isPrivateBlock.add(Blocks.LEVER);
+        isPrivateBlock.add(Blocks.NOTE_BLOCK);
+        isPrivateBlock.add(Blocks.REPEATER);
+        isPrivateBlock.add(Blocks.SMOKER);
+        isPrivateBlock.add(Blocks.STONE_BUTTON);
+        isPrivateBlock.add(Blocks.TRAPPED_CHEST);
 
-        return statefulBlocks.contains(block);
+        return isPrivateBlock.contains(block);
     }
 }
