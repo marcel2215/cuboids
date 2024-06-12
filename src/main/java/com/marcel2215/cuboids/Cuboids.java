@@ -297,6 +297,7 @@ public class Cuboids implements ModInitializer {
         functionalBlocks.add(Blocks.SMITHING_TABLE);
         functionalBlocks.add(Blocks.SPRUCE_BUTTON);
         functionalBlocks.add(Blocks.STONECUTTER);
+        functionalBlocks.add(Blocks.TRAPPED_CHEST);
         functionalBlocks.add(Blocks.WARPED_BUTTON);
         functionalBlocks.add(Blocks.WHITE_BED);
         functionalBlocks.add(Blocks.YELLOW_BED);
