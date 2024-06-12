@@ -2,6 +2,7 @@ package com.marcel2215.cuboids;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -27,6 +28,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
@@ -49,6 +51,7 @@ public class Cuboids implements ModInitializer {
         _authorizedBossBar = new ServerBossBar(Text.literal("Cuboid").setStyle(Style.EMPTY.withColor(TextColor.fromFormatting(Formatting.GREEN)).withBold(true)), BossBar.Color.GREEN, BossBar.Style.PROGRESS);
 
         ServerTickEvents.END_WORLD_TICK.register(this::onWorldTick);
+        AttackEntityCallback.EVENT.register(this::onPlayerAttack);
         UseItemCallback.EVENT.register(this::onItemUse);
         UseBlockCallback.EVENT.register(this::onBlockUse);
         PlayerBlockBreakEvents.BEFORE.register(this::onBlockBreak);
@@ -81,6 +84,21 @@ public class Cuboids implements ModInitializer {
                 _authorizedBossBar.removePlayer((ServerPlayerEntity) player);
             }
         }
+    }
+
+    private ActionResult onPlayerAttack(PlayerEntity player, World world, Hand ignoredHand, Entity entity, EntityHitResult ignoredHitResult) {
+        if (player.isSpectator()) return ActionResult.PASS;
+        if (entity instanceof PlayerEntity targetPlayer) {
+            var pos = targetPlayer.getBlockPos();
+            var status = getCuboidStatus(world, pos, player, CUBOID_RANGE);
+
+            if (status == CuboidStatus.SERVER_OWNED) {
+                player.sendMessage(Text.of("PVP Disabled Here"), true);
+                return ActionResult.FAIL;
+            }
+        }
+
+        return ActionResult.PASS;
     }
 
     private TypedActionResult<ItemStack> onItemUse(PlayerEntity playerEntity, World world, Hand hand) {
