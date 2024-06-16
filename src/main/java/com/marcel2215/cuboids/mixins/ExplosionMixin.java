@@ -24,7 +24,7 @@ public class ExplosionMixin {
 
         var world = entity.getWorld();
         for (BlockPos pos : explosion.getAffectedBlocks()) {
-            var serverMarkers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(60), e -> {
+            var serverMarkers = world.getEntitiesByType(EntityType.MARKER, new Box(pos).expand(100), e -> {
                 var tags = e.getCommandTags();
                 return tags.contains("__type__cuboid") && tags.contains("__server_owned");
             });

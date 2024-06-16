@@ -38,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Cuboids implements ModInitializer {
-    private final int CUBOID_RANGE = 30;
+    private final int CUBOID_RANGE = 50;
 
     private ServerBossBar _unauthorizedBossBar;
     private ServerBossBar _serverOwnedBossBar;
@@ -339,6 +339,22 @@ public class Cuboids implements ModInitializer {
         isPrivateBlock.add(Blocks.SMOKER);
         isPrivateBlock.add(Blocks.STONE_BUTTON);
         isPrivateBlock.add(Blocks.TRAPPED_CHEST);
+        isPrivateBlock.add(Blocks.COPPER_DOOR);
+        isPrivateBlock.add(Blocks.EXPOSED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.WEATHERED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.OXIDIZED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.WAXED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.WAXED_EXPOSED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.WAXED_WEATHERED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.WAXED_OXIDIZED_COPPER_DOOR);
+        isPrivateBlock.add(Blocks.COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.EXPOSED_COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.WEATHERED_COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.OXIDIZED_COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.WAXED_COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.WAXED_EXPOSED_COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.WAXED_WEATHERED_COPPER_TRAPDOOR);
+        isPrivateBlock.add(Blocks.WAXED_OXIDIZED_COPPER_TRAPDOOR);
 
         return isPrivateBlock.contains(block);
     }
